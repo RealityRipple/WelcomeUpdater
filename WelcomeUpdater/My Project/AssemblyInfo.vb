@@ -12,7 +12,7 @@ Imports System.Runtime.InteropServices
 <Assembly: AssemblyDescription("Windows 7 Welcome Screen Updater lets you modify your Welcome screen and Startup Sound.")> 
 <Assembly: AssemblyCompany("RealityRipple Software")> 
 <Assembly: AssemblyProduct("Welcome Updater")> 
-<Assembly: AssemblyCopyright("http://realityripple.com")> 
+<Assembly: AssemblyCopyright("http://realityripple.com/Software/Applications/WelcomeUpdater/")> 
 <Assembly: AssemblyTrademark("WelcomeUpdater by RealityRipple Software")> 
 
 <Assembly: ComVisible(False)>
@@ -31,5 +31,5 @@ Imports System.Runtime.InteropServices
 ' by using the '*' as shown below:
 ' <Assembly: AssemblyVersion("1.0.*")> 
 
-<Assembly: AssemblyVersion("1.0.0.0")> 
-<Assembly: AssemblyFileVersion("1.0.0.0")> 
+<Assembly: AssemblyVersion("1.1")> 
+<Assembly: AssemblyFileVersion("1.1")> 

@@ -111,6 +111,7 @@ Public Class frmMain
     If Not pctWelcome.Tag = "EMBEDDED IMAGE" Then DoChange = True
     If Not txtStartupSound.Text = "EMBEDDED SOUND" Then DoChange = True
     If DoChange Then
+      GrantFullControlToEveryone(imageresDLL)
       If Not My.Computer.FileSystem.FileExists(imageresDLL & ".bak") Then
         lblActivity.Text = "Backing up DLL"
         Application.DoEvents()
@@ -311,6 +312,19 @@ Public Class frmMain
   End Function
   Public Function TickCount() As Long
     Return (Stopwatch.GetTimestamp / Stopwatch.Frequency) * 1000
+  End Function
+  Friend Function GrantFullControlToEveryone(ByVal Folder As String) As Boolean
+    Try
+      Dim Security As System.Security.AccessControl.DirectorySecurity = Directory.GetAccessControl(Folder)
+      Dim Sid As New System.Security.Principal.SecurityIdentifier(System.Security.Principal.WellKnownSidType.WorldSid, Nothing)
+      Dim Account As System.Security.Principal.NTAccount = TryCast(Sid.Translate(GetType(System.Security.Principal.NTAccount)), System.Security.Principal.NTAccount)
+      Dim Grant As New System.Security.AccessControl.FileSystemAccessRule(Account, System.Security.AccessControl.FileSystemRights.FullControl, System.Security.AccessControl.InheritanceFlags.ContainerInherit Or System.Security.AccessControl.InheritanceFlags.ObjectInherit, System.Security.AccessControl.PropagationFlags.None, System.Security.AccessControl.AccessControlType.Allow)
+      Security.AddAccessRule(Grant)
+      Directory.SetAccessControl(Folder, Security)
+      Return True
+    Catch ex As Exception
+      Return False
+    End Try
   End Function
 
   Private Sub cmdDonate_Click(sender As System.Object, e As System.EventArgs) Handles cmdDonate.Click
