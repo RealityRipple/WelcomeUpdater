@@ -1,9 +1,9 @@
 ﻿Imports Vestris.ResourceLib
-Imports System.IO
 
 Public Class frmMain
   Private imageresDLL As String = Environment.GetFolderPath(Environment.SpecialFolder.System) & "\imageres.dll"
   Private TempDir As String = My.Computer.FileSystem.SpecialDirectories.Temp & "\welcomeUP\"
+
   Private Sub frmMain_Shown(sender As Object, e As System.EventArgs) Handles Me.Shown
     If My.Computer.FileSystem.FileExists(imageresDLL & ".bak") Then
       cmdRevert.Enabled = True
@@ -124,6 +124,13 @@ Public Class frmMain
           Exit Sub
         End Try
       End If
+      If My.Computer.FileSystem.FileExists(imageresDLL & ".active") Then
+        Try
+          IO.File.Delete(imageresDLL & ".active")
+        Catch ex As Exception
+
+        End Try
+      End If
       If Not pctWelcome.Tag = "EMBEDDED IMAGE" Then
         lblActivity.Text = "Loading Images"
         Application.DoEvents()
@@ -146,21 +153,17 @@ Public Class frmMain
           ShowUI()
           Exit Sub
         End Try
-        GC.Collect()
-        Dim iStart As Long = TickCount()
-        lblActivity.Text = "Waiting for DLL"
         Application.DoEvents()
-        Do Until InUseChecker(imageresDLL, FileAccess.Write)
-          Application.DoEvents()
-          Threading.Thread.Sleep(1)
-          If TickCount() - iStart > 15000 Then Exit Do
-        Loop
-        'If Not InUseChecker(imageresDLL, FileAccess.Write) Then
-        '  MsgBox("Unable to modify ImageRes DLL File. Please make sure it's not in use!", MsgBoxStyle.Critical, "DLL Modify Error!")
-        '  ShowUI()
-        '  Exit Sub
-        'End If
-        Application.DoEvents()
+
+        Try
+          IO.File.Move(imageresDLL, imageresDLL & ".active")
+          IO.File.Copy(imageresDLL & ".active", imageresDLL, True)
+        Catch ex As Exception
+          MsgBox("Unable to backup ImageRes DLL File. Please make sure it's not in use!" & vbNewLine & ex.Message, MsgBoxStyle.Critical, "DLL Backup Error!")
+          ShowUI()
+          Exit Sub
+        End Try
+
         For I As Integer = 0 To gRes.Count - 1
           lblActivity.Text = "Scaling Image " & (I + 1) & "/" & gRes.Count
           Application.DoEvents()
@@ -198,6 +201,11 @@ Public Class frmMain
             Exit Sub
           End Try
         Next
+        Try
+          IO.File.Delete(imageresDLL & ".active")
+        Catch ex As Exception
+
+        End Try
         Changed = True
       End If
       If Not txtStartupSound.Text = "EMBEDDED SOUND" Then
@@ -227,15 +235,16 @@ Public Class frmMain
           ShowUI()
           Exit Sub
         End Try
-        GC.Collect()
-        Dim iStart As Long = TickCount()
-        lblActivity.Text = "Waiting for DLL"
-        Application.DoEvents()
-        Do Until InUseChecker(imageresDLL, FileAccess.Write)
-          Application.DoEvents()
-          Threading.Thread.Sleep(1)
-          If TickCount() - iStart > 15000 Then Exit Do
-        Loop
+
+        Try
+          IO.File.Move(imageresDLL, imageresDLL & ".active")
+          IO.File.Copy(imageresDLL & ".active", imageresDLL, True)
+        Catch ex As Exception
+          MsgBox("Unable to backup ImageRes DLL File. Please make sure it's not in use!" & vbNewLine & ex.Message, MsgBoxStyle.Critical, "DLL Backup Error!")
+          ShowUI()
+          Exit Sub
+        End Try
+
         lblActivity.Text = "Saving Sound"
         Application.DoEvents()
         Try
@@ -244,6 +253,11 @@ Public Class frmMain
           MsgBox("Unable to save ImageRes DLL File. Please make sure it's not in use!" & vbNewLine & ex.Message, MsgBoxStyle.Critical, "DLL Save Error!")
           ShowUI()
           Exit Sub
+        End Try
+        Try
+          IO.File.Delete(imageresDLL & ".active")
+        Catch ex As Exception
+
         End Try
         Changed = True
       End If
@@ -256,6 +270,11 @@ Public Class frmMain
       End If
     End If
   End Sub
+
+  Private Sub cmdDonate_Click(sender As System.Object, e As System.EventArgs) Handles cmdDonate.Click
+    Process.Start("http://realityripple.com/donate.php?itm=Welcome+Updater")
+  End Sub
+
   Private Sub ShowUI()
     lblActivity.Text = ""
     TableLayoutPanel1.SetColumnSpan(lblActivity, 1)
@@ -268,6 +287,7 @@ Public Class frmMain
     txtStartupSound.Enabled = True
     pctWelcome.Enabled = True
   End Sub
+
   Private Sub HideUI()
     cmdSave.Enabled = False
     cmdRevert.Enabled = False
@@ -280,145 +300,16 @@ Public Class frmMain
     pctWelcome.Enabled = False
   End Sub
 
-
-  ''' <summary>
-  ''' Attempts to see if a file is in use, waiting up to five seconds for it to be freed.
-  ''' </summary>
-  ''' <param name="Filename">The exact path to the file which needs to be checked.</param>
-  ''' <param name="access">Write permissions required for checking.</param>
-  ''' <returns>True on available, false on in use.</returns>
-  ''' <remarks></remarks>
-  Public Function InUseChecker(Filename As String, access As IO.FileAccess) As Boolean
-    If Not IO.File.Exists(Filename) Then Return True
-    Dim iStart As Long = TickCount()
-    Do
-      Try
-        Select Case access
-          Case FileAccess.Read
-            'only check for ability to read
-            Using fs As FileStream = IO.File.Open(Filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite Or FileShare.Delete)
-              If fs.CanRead Then
-                Return True
-                Exit Do
-              End If
-            End Using
-          Case FileAccess.Write, FileAccess.ReadWrite
-            'check for ability to write
-            Using fs As FileStream = IO.File.Open(Filename, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite Or FileShare.Delete)
-              If fs.CanWrite Then
-                Return True
-                Exit Do
-              End If
-            End Using
-        End Select
-      Catch ex As Exception
-      End Try
-      Threading.Thread.Sleep(100)
-      Threading.Thread.Sleep(0)
-      Threading.Thread.Sleep(100)
-    Loop While TickCount() - iStart < 5000
-    Return False
-  End Function
-  Public Function TickCount() As Long
-    Return (Stopwatch.GetTimestamp / Stopwatch.Frequency) * 1000
-  End Function
   Friend Function GrantFullControlToEveryone(ByVal Folder As String) As Boolean
     Try
-      Dim Security As System.Security.AccessControl.DirectorySecurity = Directory.GetAccessControl(Folder)
+      Dim Security As System.Security.AccessControl.DirectorySecurity = IO.Directory.GetAccessControl(Folder)
       Dim Sid As New System.Security.Principal.SecurityIdentifier(System.Security.Principal.WellKnownSidType.WorldSid, Nothing)
       Dim Account As System.Security.Principal.NTAccount = TryCast(Sid.Translate(GetType(System.Security.Principal.NTAccount)), System.Security.Principal.NTAccount)
       Dim Grant As New System.Security.AccessControl.FileSystemAccessRule(Account, System.Security.AccessControl.FileSystemRights.FullControl, System.Security.AccessControl.InheritanceFlags.ContainerInherit Or System.Security.AccessControl.InheritanceFlags.ObjectInherit, System.Security.AccessControl.PropagationFlags.None, System.Security.AccessControl.AccessControlType.Allow)
       Security.AddAccessRule(Grant)
-      Directory.SetAccessControl(Folder, Security)
+      IO.Directory.SetAccessControl(Folder, Security)
       Return True
     Catch ex As Exception
-      Return False
-    End Try
-  End Function
-
-  Private Sub cmdDonate_Click(sender As System.Object, e As System.EventArgs) Handles cmdDonate.Click
-    Process.Start("http://realityripple.com/donate.php?itm=Welcome+Updater")
-  End Sub
-End Class
-
-
-
-NotInheritable Class GrayBMP_File
-  Private Sub New()
-  End Sub
-  Shared BMP_File_Header As Byte() = New Byte(13) {}
-  Shared DIB_header As Byte() = New Byte(39) {}
-  Shared Color_palette As Byte() = New Byte(1023) {}
-  Shared Bitmap_Data As Byte() = Nothing
-  Private Shared Function create_palette() As Byte()
-    Dim color_palette As Byte() = New Byte(1023) {}
-    For i As Integer = 0 To 255
-      color_palette(i * 4 + 0) = CByte(i)
-      color_palette(i * 4 + 1) = CByte(i)
-      color_palette(i * 4 + 2) = CByte(i)
-      color_palette(i * 4 + 3) = CByte(0)
-    Next
-    Return color_palette
-  End Function
-  Private Shared Sub create_parts(img As Image)
-    Bitmap_Data = ConvertToGrayscale(img)
-    Copy_to_Index(BMP_File_Header, New Byte() {CByte(AscW("B"c)), CByte(AscW("M"c))}, 0)
-    Copy_to_Index(BMP_File_Header, BitConverter.GetBytes(BMP_File_Header.Length + DIB_header.Length + Color_palette.Length + Bitmap_Data.Length), 2)
-    Copy_to_Index(BMP_File_Header, New Byte() {CByte(AscW("M"c)), CByte(AscW("C"c)), CByte(AscW("A"c)), CByte(AscW("T"c))}, 6)
-    Copy_to_Index(BMP_File_Header, BitConverter.GetBytes(BMP_File_Header.Length + DIB_header.Length + Color_palette.Length), 10)
-    Copy_to_Index(DIB_header, BitConverter.GetBytes(DIB_header.Length), 0)
-    Copy_to_Index(DIB_header, BitConverter.GetBytes(DirectCast(img, Bitmap).Width), 4)
-    Copy_to_Index(DIB_header, BitConverter.GetBytes(DirectCast(img, Bitmap).Height), 8)
-    Copy_to_Index(DIB_header, New Byte() {CByte(1), CByte(0)}, 12)
-    Copy_to_Index(DIB_header, New Byte() {CByte(8), CByte(0)}, 14)
-    Copy_to_Index(DIB_header, BitConverter.GetBytes(0), 16)
-    Copy_to_Index(DIB_header, BitConverter.GetBytes(Bitmap_Data.Length), 20)
-    Copy_to_Index(DIB_header, BitConverter.GetBytes(1000), 24)
-    'horizontal reselution N.B. not important
-    Copy_to_Index(DIB_header, BitConverter.GetBytes(1000), 28)
-    'vertical reselution N.B. not important
-    Copy_to_Index(DIB_header, BitConverter.GetBytes(256), 32)
-    Copy_to_Index(DIB_header, BitConverter.GetBytes(0), 36)
-    Color_palette = create_palette()
-  End Sub
-  Private Shared Function ConvertToGrayscale(inImg As Image) As Byte()
-    Dim inBMP As Bitmap = DirectCast(inImg, Bitmap)
-    Dim padding As Integer = If((inBMP.Width Mod 4) <> 0, 4 - (inBMP.Width Mod 4), 0)
-    Dim bytes As Byte() = New Byte(inBMP.Width * inBMP.Height + (padding * inBMP.Height - 1)) {}
-    For y As Integer = 0 To inBMP.Height - 1
-      For x As Integer = 0 To inBMP.Width - 1
-        Dim c As Color = inBMP.GetPixel(x, y)
-        Dim g As Integer = Convert.ToInt32(0.3 * c.R + 0.59 * c.G + 0.11 * c.B)
-        bytes((inBMP.Height - 1 - y) * inBMP.Width + (inBMP.Height - 1 - y) * padding + x) = CByte(g)
-      Next
-      For i As Integer = 0 To padding - 1
-        bytes((inBMP.Height - y) * inBMP.Width + (inBMP.Height - 1 - y) * padding + i) = CByte(0)
-      Next
-    Next
-    Return bytes
-  End Function
-  Public Shared Function CreateGrayBitmapFile(Image As Image, Path As String) As Boolean
-    Try
-      create_parts(Image)
-      Dim oFileStream As FileStream
-      oFileStream = New FileStream(Path, FileMode.OpenOrCreate)
-      oFileStream.Write(BMP_File_Header, 0, BMP_File_Header.Length)
-      oFileStream.Write(DIB_header, 0, DIB_header.Length)
-      oFileStream.Write(Color_palette, 0, Color_palette.Length)
-      oFileStream.Write(Bitmap_Data, 0, Bitmap_Data.Length)
-      oFileStream.Close()
-      Return True
-    Catch
-      Return False
-    End Try
-  End Function
-  Private Shared Function Copy_to_Index(destination As Byte(), source As Byte(), index As Integer) As Boolean
-    Try
-      For i As Integer = 0 To source.Length - 1
-        destination(i + index) = source(i)
-      Next
-      Return True
-    Catch
       Return False
     End Try
   End Function
