@@ -227,6 +227,15 @@ Public Class frmMain
           ShowUI()
           Exit Sub
         End Try
+        GC.Collect()
+        Dim iStart As Long = TickCount()
+        lblActivity.Text = "Waiting for DLL"
+        Application.DoEvents()
+        Do Until InUseChecker(imageresDLL, FileAccess.Write)
+          Application.DoEvents()
+          Threading.Thread.Sleep(1)
+          If TickCount() - iStart > 15000 Then Exit Do
+        Loop
         lblActivity.Text = "Saving Sound"
         Application.DoEvents()
         Try
