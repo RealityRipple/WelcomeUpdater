@@ -304,10 +304,16 @@ Public Class frmMain
     Try
       Dim oldOwner As String = IO.File.GetAccessControl(Path, Security.AccessControl.AccessControlSections.Owner).GetOwner(GetType(System.Security.Principal.NTAccount)).Value
       If oldOwner = "NT SERVICE\TrustedInstaller" Then
-        Dim takeOwnership = Process.Start("takeown", "/f """ & Path & """")
-        takeOwnership.WaitForExit(3000)
-        Dim icacls = Process.Start("icacls", """" & Path & """ /grant administrators:F /q")
-        icacls.WaitForExit(3000)
+        Dim takeOwnership As New Process
+        Dim ownRun As New ProcessStartInfo("takeown", "/f """ & Path & """")
+        ownRun.WindowStyle = ProcessWindowStyle.Hidden
+        takeOwnership = Process.Start(ownRun)
+        takeOwnership.WaitForExit()
+        Dim icacls As New Process
+        Dim icaRun As New ProcessStartInfo("icacls", """" & Path & """ /grant administrators:F /q")
+        icaRun.WindowStyle = ProcessWindowStyle.Hidden
+        icacls = Process.Start(icaRun)
+        icacls.WaitForExit()
         Dim newOwner As String = IO.File.GetAccessControl(Path, Security.AccessControl.AccessControlSections.Owner).GetOwner(GetType(System.Security.Principal.NTAccount)).Value
         If newOwner = "NT SERVICE\TrustedInstaller" Then Return False
       End If
