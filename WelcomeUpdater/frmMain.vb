@@ -111,7 +111,7 @@ Public Class frmMain
     If Not pctWelcome.Tag = "EMBEDDED IMAGE" Then DoChange = True
     If Not txtStartupSound.Text = "EMBEDDED SOUND" Then DoChange = True
     If DoChange Then
-      GrantFullControlToEveryone(imageresDLL)
+      TakeFullOwnership(imageresDLL)
       If Not My.Computer.FileSystem.FileExists(imageresDLL & ".bak") Then
         lblActivity.Text = "Backing up DLL"
         Application.DoEvents()
@@ -300,14 +300,17 @@ Public Class frmMain
     pctWelcome.Enabled = False
   End Sub
 
-  Friend Function GrantFullControlToEveryone(ByVal Folder As String) As Boolean
+  Friend Function TakeFullOwnership(ByVal Path As String) As Boolean
     Try
-      Dim Security As System.Security.AccessControl.DirectorySecurity = IO.Directory.GetAccessControl(Folder)
-      Dim Sid As New System.Security.Principal.SecurityIdentifier(System.Security.Principal.WellKnownSidType.WorldSid, Nothing)
-      Dim Account As System.Security.Principal.NTAccount = TryCast(Sid.Translate(GetType(System.Security.Principal.NTAccount)), System.Security.Principal.NTAccount)
-      Dim Grant As New System.Security.AccessControl.FileSystemAccessRule(Account, System.Security.AccessControl.FileSystemRights.FullControl, System.Security.AccessControl.InheritanceFlags.ContainerInherit Or System.Security.AccessControl.InheritanceFlags.ObjectInherit, System.Security.AccessControl.PropagationFlags.None, System.Security.AccessControl.AccessControlType.Allow)
-      Security.AddAccessRule(Grant)
-      IO.Directory.SetAccessControl(Folder, Security)
+      Dim oldOwner As String = IO.File.GetAccessControl(Path, Security.AccessControl.AccessControlSections.Owner).GetOwner(GetType(System.Security.Principal.NTAccount)).Value
+      If oldOwner = "NT SERVICE\TrustedInstaller" Then
+        Dim takeOwnership = Process.Start("takeown", "/f """ & Path & """")
+        takeOwnership.WaitForExit(3000)
+        Dim icacls = Process.Start("icacls", """" & Path & """ /grant administrators:F /q")
+        icacls.WaitForExit(3000)
+        Dim newOwner As String = IO.File.GetAccessControl(Path, Security.AccessControl.AccessControlSections.Owner).GetOwner(GetType(System.Security.Principal.NTAccount)).Value
+        If newOwner = "NT SERVICE\TrustedInstaller" Then Return False
+      End If
       Return True
     Catch ex As Exception
       Return False
